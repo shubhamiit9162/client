@@ -1,143 +1,147 @@
-const express = require("express");
-const cors = require("cors");
-const pdf = require("html-pdf");
-const pdfSample = require("./pdf-sample");
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-
-// MongoDB connection
-mongoose.connect("mongodb://localhost:27017/", {
-  
-})
-  .then(() => console.log("MongoDB connected successfully"))
-  .catch((err) => console.error("MongoDB connection error:", err));
-
-// User Schema and Model
-const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-});
-
-const User = mongoose.model("User", UserSchema);
-
-// Resume Schema and Model
-const ResumeSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  name: String,
-  email: String,
-  phone: String,
-  education: String,
-  experience: String,
-  skills: String,
-});
-
-const Resume = mongoose.model("Resume", ResumeSchema);
-
-const app = express();
-const PORT = 4000;
-
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Generate JWT
-const generateToken = (user) => {
-  return jwt.sign({ id: user._id, username: user.username }, "your_jwt_secret", { expiresIn: "1h" });
-};
-
-// Registration route
-app.post("/register", async (req, res) => {
-  const { username, email, password } = req.body;
-  try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, email, password: hashedPassword });
-    await newUser.save();
-    const token = generateToken(newUser);
-    res.status(201).json({ token });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Login route
-app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-    const token = generateToken(user);
-    res.status(200).json({ token });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Middleware to verify token
-const auth = (req, res, next) => {
-  const token = req.header("x-auth-token");
-  if (!token) return res.status(401).json({ message: "No token, authorization denied" });
-
-  try {
-    const decoded = jwt.verify(token, "your_jwt_secret");
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(400).json({ message: "Token is not valid" });
-  }
-};
-
-// Create PDF route (protected)
-app.post("/create-pdf", auth, async (req, res) => {
-  try {
-    const newResume = new Resume({ ...req.body, userId: req.user.id });
-    await newResume.save();
-    
-    pdf.create(pdfSample(req.body), {}).toFile("Resume.pdf", (err) => {
-      if (err) {
-        res.send(Promise.reject());
-        console.log(err);
-      }
-      res.send(Promise.resolve());
-      console.log("Success");
-    });
-  } catch (err) {
-    res.status(500).send(err);
-  }
-});
-
-// Fetch PDF route
-app.get("/fetch-pdf", (req, res) => {
-  res.sendFile(`${__dirname}/Resume.pdf`);
-});
-
-// Get all resumes for authenticated user
-app.get("/resumes", auth, async (req, res) => {
-  try {
-    const resumes = await Resume.find({ userId: req.user.id });
-    res.json(resumes);
-  } catch (err) {
-    res.status(500).send(err);
-  }
-});
-
-
-
-
-// Serve static files
-app.use(express.static("../client/build"));
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+module.exports = ({
+    name,
+    email,
+    phone,
+    linkedin,
+    github,
+    skills,
+    exp1_org,
+    exp1_pos,
+    exp1_desc,
+    exp1_dur,
+    exp2_org,
+    exp2_pos,
+    exp2_desc,
+    exp2_dur,
+    proj1_title,
+    proj1_link,
+    proj1_desc,
+    proj2_title,
+    proj2_link,
+    proj2_desc,
+    edu1_school,
+    edu1_year,
+    edu1_qualification,
+    edu1_desc,
+    edu2_school,
+    edu2_year,
+    edu2_qualification,
+    edu2_desc,
+    extra_1,
+    extra_2,
+  }) => {
+    return `
+          <!doctype html>
+          <html>
+              <head>
+                  <!-- Font Awesome -->
+                  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css">
+                  <!-- Bootstrap core CSS -->
+                  <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+                  <!-- Material Design Bootstrap -->
+                  <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.7.5/css/mdb.min.css" rel="stylesheet">
+      
+                  <style>
+                    html{
+                        zoom: 0.55;
+                    }    
+                    .rule{
+                      border-bottom: 1px solid black;
+                      width:80%;
+                    }
+                    .mobile{
+                      margin-top:-10px;
+                    }
+                    .email{
+                      margin-bottom: 0;    
+                    }
+                    body{
+                      font-family: 'Garamond';
+                    }
+                  </style>
+              
+              </head>
+              <body>
+      
+              <div class="col-lg-8 mx-auto">
+              <br/><br/>
+              <div class="row text-center">
+                  <div class="col-lg-6">
+                      <h1><b>${name}</b></h1>
+                      <p class="lead email"><strong>Email:</strong> ${email}</p>
+                      <p class="lead"><strong>Contact:</strong> (+92)${phone}</p>
+                      <p class="lead"><strong>LinkedIn:</strong> ${linkedin}</p>
+                      <p class="lead"><strong>Github:</strong> ${github}</p>
+                  </div>    
+              </div>
+            
+              <hr/>
+              <div class="col-lg-8 mx-auto bg-light">
+                    <h3><b>Skills</b></h3>
+              </div>
+              <div class="col-lg-8 row mx-auto">
+                  <p class="lead"> ${skills}</p>
+              </div>
+      
+              
+              <div class="col-lg-8 mx-auto bg-light">
+                    <h3><b>Experience</b></h3>
+              </div>
+              <div class="col-lg-8 mx-auto">
+                    <p class="lead"><b>${exp1_org}, ${exp1_pos}</b> (${exp1_dur})</p>
+                    <p class="mt-0">${exp1_desc}</p>
+              </div>
+              <div class="col-lg-8 mx-auto">
+                    <p class="lead"><b>${exp2_org}, ${exp2_pos}</b> (${exp2_dur})</p>
+                    <p class="mt-0">${exp2_desc}</p>
+              </div>
+      
+              
+              <div class="col-lg-8 mx-auto bg-light">
+                    <h3><b>Projects</b></h3>
+              </div>
+              <div class="col-lg-8 mx-auto">
+                    <p class="lead"><b>${proj1_title}</b>(${proj1_link})</p>
+                    <p class="mt-0">${proj1_desc}</p>
+              </div>
+              <div class="col-lg-8 mx-auto">
+                    <p class="lead"><b>${proj2_title}</b> (${proj2_link})</p>
+                    <p class="mt-0">${proj2_desc}</p>
+              </div>
+      
+      
+              <div class="col-lg-8 mx-auto bg-light">
+                    <h3><b>Education</b></h3>
+              </div>
+              <div class="col-lg-8 mx-auto">
+                    <p class="lead"><b>${edu1_school}</b> (${edu1_qualification}, ${edu1_year})</p>
+                    <p class="mt-0">${edu1_desc}</p>
+              </div>
+              <div class="col-lg-8 mx-auto">
+                    <p class="lead"><b>${edu2_school}</b> (${edu2_qualification}, ${edu2_year})</p>
+                    <p class="mt-0">${edu2_desc}</p>
+              </div>
+      
+              <div class="col-lg-8 mx-auto bg-light">
+                    <h3><b>Extra-Curriculars/Activities</b></h3>
+              </div>
+              <div class="col-lg-8 mx-auto">
+                    <ul>
+                      <li><p class="lead"><b>Languages: </b>${extra_1} </p></li>
+                      <li><p class="lead"><b>Hobbies: </b>${extra_2} </p></li>
+                    </ul>
+                    
+              </div>
+              
+                  <!-- JQuery -->
+                  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+                  <!-- Bootstrap tooltips -->
+                  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+                  <!-- Bootstrap core JavaScript -->
+                  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+                  <!-- MDB core JavaScript -->
+                  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.7.5/js/mdb.min.js"></script>
+              </body>
+          </html> 
+        `;
+  };
